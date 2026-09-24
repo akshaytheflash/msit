@@ -8,7 +8,8 @@ email=os.environ.get('INITIAL_ADMIN_EMAIL','').strip().lower()
 password=os.environ.get('INITIAL_ADMIN_PASSWORD','')
 name=os.environ.get('INITIAL_ADMIN_NAME','Portal Administrator').strip()
 if not email or not password:
-    raise SystemExit('Set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD in Render before the first deploy.')
+    print('No initial admin secrets supplied; create the first administrator at /setup using SECRET_KEY.')
+    raise SystemExit(0)
 if len(password)<12:
     raise SystemExit('INITIAL_ADMIN_PASSWORD must be at least 12 characters.')
 db=SessionLocal()

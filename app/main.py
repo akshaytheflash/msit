@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from pathlib import Path
-import os, smtplib, json
+import os, smtplib, json, hmac
 from email.message import EmailMessage
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, UploadFile, File, Header
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -104,12 +104,34 @@ def notify(db,report,lab):
 @app.get('/health')
 def health(): return {'status':'ok'}
 @app.get('/login',response_class=HTMLResponse)
-def login_page(request: Request): return templates.TemplateResponse(request,'login.html',{'error':''})
+def login_page(request: Request,db:Session=Depends(db_dep)): return templates.TemplateResponse(request,'login.html',{'error':'','needs_setup':db.query(User).count()==0})
 @app.post('/login',response_class=HTMLResponse)
 def login(request: Request,email:str=Form(...),password:str=Form(...),db:Session=Depends(db_dep)):
     user=db.query(User).filter(func.lower(User.email)==email.lower()).first()
-    if not user or not pwd.verify(password,user.password_hash): return templates.TemplateResponse(request,'login.html',{'error':'Email or password is incorrect'},status_code=401)
+    if not user or not pwd.verify(password,user.password_hash): return templates.TemplateResponse(request,'login.html',{'error':'Email or password is incorrect','needs_setup':db.query(User).count()==0},status_code=401)
     request.session['user_id']=user.id; return RedirectResponse('/',status_code=303)
+@app.get('/setup',response_class=HTMLResponse)
+def setup_page(request:Request,db:Session=Depends(db_dep)):
+    if db.query(User).count(): return RedirectResponse('/login',303)
+    return templates.TemplateResponse(request,'setup.html',{'error':''})
+@app.post('/setup',response_class=HTMLResponse)
+def setup_admin(request:Request,name:str=Form(...),email:str=Form(...),password:str=Form(...),setup_key:str=Form(...),db:Session=Depends(db_dep)):
+    if db.query(User).count(): return RedirectResponse('/login',303)
+    if settings.secret_key=='development-only-change-me' or not hmac.compare_digest(setup_key,settings.secret_key):
+        return templates.TemplateResponse(request,'setup.html',{'error':'Setup key did not match the SECRET_KEY configured for this deployment.'},status_code=403)
+    if len(password)<12:
+        return templates.TemplateResponse(request,'setup.html',{'error':'Choose a password with at least 12 characters.'},status_code=422)
+    normalized=email.strip().lower()
+    if not normalized or '@' not in normalized:
+        return templates.TemplateResponse(request,'setup.html',{'error':'Enter a valid email address.'},status_code=422)
+    user=User(name=name.strip(),email=normalized,role='Admin',department='Administration',password_hash=pwd.hash(password))
+    db.add(user)
+    try: db.commit()
+    except Exception:
+        db.rollback()
+        return templates.TemplateResponse(request,'setup.html',{'error':'An administrator account was created already. Sign in instead.'},status_code=409)
+    request.session['user_id']=user.id
+    return RedirectResponse('/',303)
 @app.get('/logout')
 def logout(request:Request): request.session.clear(); return RedirectResponse('/login',303)
 @app.get('/',response_class=HTMLResponse)
