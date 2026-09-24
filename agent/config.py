@@ -1,0 +1,5 @@
+import os
+SERVER_URL=os.getenv('LAB_SERVER_URL','http://127.0.0.1:8000')
+ASSET_CODE=os.getenv('LAB_ASSET_CODE','')
+AGENT_TOKEN=os.getenv('LAB_AGENT_TOKEN','')
+HEARTBEAT_SECONDS=int(os.getenv('LAB_HEARTBEAT_SECONDS','45'))

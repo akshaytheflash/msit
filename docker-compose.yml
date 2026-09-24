@@ -1,0 +1,12 @@
+services:
+  portal:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/srv/lab-portal/data
+      - ./uploads:/srv/lab-portal/uploads
+    environment:
+      DATABASE_URL: sqlite:////srv/lab-portal/data/lab_assets.db

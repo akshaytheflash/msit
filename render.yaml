@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: institute-laboratory-services
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: lab-portal-data
+      mountPath: /var/data
+      sizeGB: 1
+    initialDeployHook: python scripts/bootstrap_render_admin.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TELEMETRY_API_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////var/data/lab_assets.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_NAME
+        sync: false
