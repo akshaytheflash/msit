@@ -4,6 +4,7 @@ import os, smtplib, json, hmac
 from email.message import EmailMessage
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, UploadFile, File, Header
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -64,6 +65,11 @@ app.add_middleware(SessionMiddleware,secret_key=settings.secret_key,same_site='l
 UPLOAD_DIR=Path(settings.upload_dir); UPLOAD_DIR.mkdir(parents=True,exist_ok=True)
 app.mount('/static',StaticFiles(directory='app/static'),name='static'); app.mount('/uploads',StaticFiles(directory=str(UPLOAD_DIR)),name='uploads'); templates=Jinja2Templates(directory='app/templates')
 pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
+@app.exception_handler(HTTPException)
+async def browser_auth_redirect(request:Request,exc:HTTPException):
+    if exc.status_code==401 and not request.url.path.startswith('/api/'):
+        return RedirectResponse('/login',status_code=303)
+    return await http_exception_handler(request,exc)
 def db_dep():
     db=SessionLocal()
     try: yield db
